@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculadora de Rescisão</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: duas colunas — formulário à esquerda, resultado fixo à direita; uma coluna no celular */
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --fg:#1b2420; --muted:#5d6b64; --line:#d9dfdb;
+  --accent:#1f6f5c; --accent-soft:#e2f0ea; --pay:#a3471f; --pay-soft:#f8e7de; --ok:#1f6f5c; --hold:#7a5a00; --hold-soft:#f6edcf;
+  --f-body:"Instrument Sans",system-ui,sans-serif; --f-num:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121715; --surface:#1a211e; --fg:#e6ece9; --muted:#9aa8a1; --line:#2d3833;
+  --accent:#5cc2a4; --accent-soft:#1d3a31; --pay:#f0946a; --pay-soft:#3b2419; --ok:#5cc2a4; --hold:#e6c160; --hold-soft:#362d12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1a211e; --fg:#e6ece9; --muted:#9aa8a1; --line:#2d3833;
+  --accent:#5cc2a4; --accent-soft:#1d3a31; --pay:#f0946a; --pay-soft:#3b2419; --ok:#5cc2a4; --hold:#e6c160; --hold-soft:#362d12; color-scheme:dark}
+*{box-sizing:border-box} [hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;margin-bottom:20px}
+h1{font-size:1.6rem;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:2px 0 0}
+.tag{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:8px;margin:0 0 16px;padding:16px 18px 18px}
+legend{font-weight:600;padding:0 6px;font-size:.95rem}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);min-width:0}
+input,select{font:inherit;font-size:.95rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=number]{font-family:var(--f-num)}
+.hint{font-size:.78rem;color:var(--muted);margin:8px 0 0}
+.radio{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.radio label{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:6px;padding:7px 10px;color:var(--fg);cursor:pointer;background:var(--bg)}
+.radio input{width:auto}
+.radio label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.result{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.verdict{padding:18px 20px;background:var(--accent-soft);border-bottom:1px solid var(--line)}
+.verdict.pay{background:var(--pay-soft)}
+.verdict .tag{color:inherit;opacity:.8}
+.big{font-family:var(--f-num);font-size:2rem;font-weight:500;margin:4px 0 2px;font-variant-numeric:tabular-nums;color:var(--ok)}
+.verdict.pay .big{color:var(--pay)}
+.verdict p{margin:0;font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+td{padding:8px 20px;border-bottom:1px solid var(--line);vertical-align:top}
+td:last-child{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.sum td{font-weight:600}
+tr.sec td{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-top:14px;border-bottom:none}
+.actions{display:flex;gap:8px;padding:14px 20px;flex-wrap:wrap}
+button{font:inherit;font-size:.88rem;border:1px solid var(--accent);background:var(--accent);color:var(--surface);border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:600}
+button.ghost{background:transparent;color:var(--accent)}
+.note{font-size:.78rem;color:var(--muted);padding:0 20px 16px;margin:0}
+.warn{color:var(--pay)}
+#buf{position:absolute;left:-9999px}
+fieldset.modal{border-color:var(--accent);background:var(--accent-soft)}
+a.btn{font-size:.88rem;font-weight:600;text-decoration:none;border-radius:6px;padding:8px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--surface)}
+a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.buscaRow{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.buscaRow label{flex:1 1 160px}
+.faltam{margin:10px 0 0;padding:10px 12px 10px 28px;background:var(--hold-soft);border-radius:6px;font-size:.85rem;display:grid;gap:4px}
+.falta input,input.falta{border-color:var(--pay);box-shadow:0 0 0 2px var(--pay-soft)}
+.cliente{border-top:1px solid var(--line);padding:14px 20px 0}
+.cliente h2{font-size:.95rem;margin:0 0 8px}
+#txtCliente{width:100%;min-height:220px;font:inherit;font-size:.86rem;line-height:1.5;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.verdict.hold{background:var(--hold-soft)} .verdict.hold .big{color:var(--hold)}
+#folha{display:none}
+@media print{
+  @page{size:A4;margin:15mm}
+  body{background:#fff!important;color:#1b2420!important}
+  .wrap{display:none!important}
+  #folha{display:block;font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#1b2420}
+  #folha h1{font-size:16pt;margin:0 0 2px}
+  #folha .sub{color:#5d6b64;margin:0 0 12px;font-size:9.5pt}
+  #folha h2{font-size:11.5pt;margin:14px 0 6px;color:#1f6f5c;border-bottom:1px solid #1f6f5c;padding-bottom:2px}
+  #folha table{width:100%;border-collapse:collapse}
+  #folha td{padding:4px 6px;border-bottom:1px solid #d9dfdb;font-family:Arial,Helvetica,sans-serif}
+  #folha td:last-child{text-align:right;white-space:nowrap}
+  #folha .dados td:last-child{text-align:left;white-space:normal}
+  #folha .dados td:first-child{width:36%;color:#5d6b64}
+  #folha tr.b td{font-weight:bold}
+  #folha tr.res td{font-weight:bold;font-size:12pt;background:#f8e7de;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #folha .dec{margin-top:12px;padding:8px 10px;border:1px solid #c9a227;background:#f6edcf;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #folha .ass{display:flex;gap:30px;margin-top:50px}
+  #folha .ass div{flex:1;border-top:1px solid #1b2420;padding-top:4px;font-size:9pt;text-align:center}
+  #folha .foot{margin-top:18px;font-size:8pt;color:#5d6b64}
+}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <span class="tag">Live Coach · rescisão de contrato</span>
+      <h1>Calculadora de Rescisão</h1>
+      <p class="sub">Mensalidades cheias até o fim do aviso de 30 dias, dias proporcionais em mês comercial (30 dias), multa de 20% e comparação com o que já foi pago.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <form id="f" autocomplete="off">
+      <fieldset class="modal">
+        <legend>Modalidade do contrato</legend>
+        <div class="row">
+          <label>Modalidade
+            <select id="modelo"></select>
+          </label>
+        </div>
+        <p class="hint" id="modalHint"></p>
+      </fieldset>
+      <fieldset class="busca">
+        <legend>Buscar pelo pedido</legend>
+        <div class="buscaRow">
+          <label>Nº do pedido<input id="nrPedido" value="18521" inputmode="numeric"></label>
+          <button type="button" id="buscarBtn">Buscar dados</button>
+        </div>
+        <p class="hint" id="buscaMsg">Nesta versão para imprimir, a busca automática não funciona: use o app no Claude para buscar e preencha os dados aqui.</p>
+        <ul class="faltam" id="faltam" hidden></ul>
+      </fieldset>
+      <fieldset>
+        <legend>Cliente e contrato</legend>
+        <div class="row">
+          <label>Cliente<input id="cliente" value="Angela Christine Zanotto Rovani dos Santos"></label>
+          <label>WhatsApp<input id="whats" type="tel" value="(46) 99901-5543"></label>
+          <label>Início do contrato<input id="venc1" type="date" value="2026-03-20"></label>
+          <label>Duração (meses)<input id="meses" type="number" min="1" step="1" value="12"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mensalidade</legend>
+        <div class="row">
+          <label>Valor cheio (R$)<input id="mCheio" type="number" min="0" step="0.01" value="209"></label>
+          <label>Valor com desconto (R$)<input id="mDesc" type="number" min="0" step="0.01" value="129.90"></label>
+          <label>Multa por rescisão (%)<input id="multa" type="number" min="0" max="100" step="0.1" value="20"></label>
+        </div>
+        <p class="hint" id="resumoValores"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pedido de rescisão</legend>
+        <div class="row">
+          <label>Data do pedido<input id="pedido" type="date" value="2026-11-05"></label>
+          <label>Aviso prévio (dias)<input id="aviso" type="number" min="0" step="1" value="30"></label>
+        </div>
+        <p class="hint" id="fimEfetivo"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pagamento</legend>
+        <div class="radio" role="radiogroup" aria-label="Forma de pagamento">
+          <label><input type="radio" name="forma" value="cartao" id="fCartao">Cartão de crédito</label>
+          <label><input type="radio" name="forma" value="pix" id="fPix" checked>Pix / dinheiro / à vista</label>
+          <label><input type="radio" name="forma" value="boleto" id="fBoleto">Boleto</label>
+        </div>
+        <div class="row" style="margin-top:12px" id="boxBoleto">
+          <label>Boletos pagos<input id="parcPagas" type="number" min="0" step="1" value="8"></label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label>Total já pago pelo cliente (R$)<input id="pago" type="number" min="0" step="0.01" value="1558.80"></label>
+        </div>
+        <p class="hint" id="pagoHint"></p>
+      </fieldset>
+    </form>
+
+    <aside>
+      <div class="result">
+        <div class="verdict" id="verdict">
+          <span class="tag" id="vLabel">Resultado</span>
+          <div class="big" id="vValor">—</div>
+          <p id="vTexto"></p>
+        </div>
+        <table id="tab"></table>
+        <div class="cliente">
+          <h2>Texto para o cliente</h2>
+          <textarea id="txtCliente" aria-label="Texto para o cliente"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" id="printBtn">Imprimir folha do cliente</button>
+          <a class="btn wa" id="waLink" href="#" target="_blank" rel="noopener">Enviar pelo WhatsApp</a>
+          <button type="button" class="ghost" id="copyCli">Copiar texto para o cliente</button>
+          <button type="button" class="ghost" id="copy">Copiar memória de cálculo</button>
+          <button type="button" class="ghost" id="reset">Limpar</button>
+        </div>
+        <p class="note" id="copyMsg">Caso carregado: Angela Christine Zanotto Rovani dos Santos, pedido 18521 (R$ 1.558,80 em 20/01/2026). Resultado esperado: R$ 512,04.</p>
+      </div>
+    </aside>
+  </div>
+  <textarea id="buf" aria-hidden="true" tabindex="-1"></textarea>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const r2=v=>Math.round(v*100)/100;
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const dt=d=>d?d.toLocaleDateString('pt-BR',{timeZone:'UTC'}):'—';
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)?v:0};
+const parseD=s=>s?new Date(s+'T00:00:00Z'):null;
+const DAY=86400000;
+function addMonths(d,m){const r=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+m,1));
+  const last=new Date(Date.UTC(r.getUTCFullYear(),r.getUTCMonth()+1,0)).getUTCDate();
+  r.setUTCDate(Math.min(d.getUTCDate(),last));return r}
+/* Modalidades de contrato. Para incluir outra, acrescente uma entrada aqui. */
+const MODALIDADES={
+  livesport12:{nome:'Live Sport 12 meses (R$ 129,90)',meses:12,cheio:209,desc:129.90,multa:20,aviso:30,
+    resumo:'12 parcelas de R$ 209,00 (R$ 2.508,00) com desconto de R$ 79,10 por mês, pagando R$ 129,90. Pagamento antecipado. Aviso de 30 dias antes do próximo pagamento. Multa de 20% sobre as mensalidades a vencer pelo valor cheio.'},
+};
+$('modelo').innerHTML=Object.entries(MODALIDADES).map(([k,m])=>`<option value="${k}">${m.nome}</option>`).join('');
+function aplicarModalidade(){const m=MODALIDADES[$('modelo').value];
+  $('meses').value=m.meses;$('mCheio').value=m.cheio;$('mDesc').value=m.desc.toFixed(2);$('multa').value=m.multa;$('aviso').value=m.aviso;
+  $('modalHint').textContent=m.resumo;}
+const forma=()=>document.querySelector('input[name=forma]:checked').value;
+let pagoManual=false;
+
+/* Regra Live Sport (planilha de referência):
+   - conta cada mensalidade cheia com vencimento até o fim do aviso prévio;
+   - soma os dias entre o último vencimento e o fim do aviso, a (cheio / 30) por dia;
+   - multa = % sobre (proporcional − já pago);
+   - diferença = proporcional + multa − já pago. */
+/* Regra do contrato:
+   - Cl. V: mensalidades antecipadas, a primeira na assinatura e as demais a cada mês.
+   - Cl. VI caput: aviso de 30 dias antes do próximo pagamento. Toda mensalidade que vence antes
+     do fim do aviso é devida; cada uma cobre o mês seguinte, então não há dias avulsos.
+   - Cl. VI §1 e §2: perde o desconto, ou seja, os meses usados são cobrados a R$ 209.
+   - Cl. VII: multa de 20% sobre as mensalidades que faltam vencer, pelo valor cheio. */
+function liveSpotContrato({venc1,meses,mCheio,pedido,aviso,multaPct,pago}){
+  const fimAviso=new Date(pedido.getTime()+aviso*DAY);
+  let n=0; while(n<meses && addMonths(venc1,n)<fimAviso) n++;
+  const valorMeses=r2(n*mCheio), proporcional=valorMeses;
+  const faltam=meses-n, baseMulta=r2(faltam*mCheio);
+  const multa=r2(baseMulta*multaPct), total=r2(proporcional+multa);
+  const cobertoAte=new Date(addMonths(venc1,n)-DAY);
+  return {regra:'contrato',fimAviso,n,dias:0,ultimo:null,valorMeses,valorDias:0,proporcional,faltam,baseMulta,multa,total,cobertoAte,dif:r2(total-pago)};
+}
+
+/* Dias em mês comercial: todo mês tem 30 dias (20/11 a 05/12 = 15 dias). */
+function diasComerciais(a,b){const da=Math.min(a.getUTCDate(),30), db=Math.min(b.getUTCDate(),30);
+  return (b.getUTCFullYear()-a.getUTCFullYear())*360+(b.getUTCMonth()-a.getUTCMonth())*30+(db-da);}
+function liveSpot({venc1,meses,mCheio,pedido,aviso,multaPct,pago}){
+  const fimAviso=new Date(pedido.getTime()+aviso*DAY);
+  let n=0; while(n<meses && addMonths(venc1,n)<=fimAviso) n++;
+  let dias=0, ultimo=null;
+  if(n>0 && n<meses){ultimo=addMonths(venc1,n-1);dias=diasComerciais(ultimo,fimAviso);}
+  if(n>=meses){dias=0;ultimo=addMonths(venc1,meses-1);}
+  const valorMeses=r2(n*mCheio), valorDias=r2(mCheio/30*dias);
+  const proporcional=r2(valorMeses+valorDias);
+  const multa=r2(Math.max(0,proporcional-pago)*multaPct);
+  const total=r2(proporcional+multa);
+  return {regra:'planilha',fimAviso,n,dias,ultimo,valorMeses,valorDias,proporcional,baseMulta:r2(Math.max(0,proporcional-pago)),multa,total,dif:r2(total-pago)};
+}
+
+function calc(){
+  const venc1=parseD($('venc1').value), pedido=parseD($('pedido').value);
+  const meses=Math.max(1,Math.round(num('meses')));
+  const mCheio=num('mCheio'), mDesc=num('mDesc')||mCheio;
+  const multaPct=num('multa')/100, aviso=Math.max(0,Math.round(num('aviso')));
+  const f=forma();
+  $('boxBoleto').hidden=f!=='boleto';
+  $('resumoValores').textContent=`Contrato cheio: ${brl(r2(mCheio*meses))} · desconto: ${brl(r2((mCheio-mDesc)*meses))} · com desconto: ${brl(r2(mDesc*meses))}.`;
+  const sugerido = f==='boleto' ? r2(Math.min(num('parcPagas'),meses)*mDesc) : r2(meses*mDesc);
+  if(!pagoManual) $('pago').value=sugerido.toFixed(2);
+  $('pagoHint').textContent = f==='boleto'
+    ? `Boletos pagos × ${brl(mDesc)} = ${brl(sugerido)}. Edite se o valor real for outro.`
+    : `Cartão e Pix: contrato inteiro pago com desconto (${meses} × ${brl(mDesc)} = ${brl(sugerido)}). Edite se foi outro.`;
+  const pago=num('pago');
+  if(!venc1||!pedido){render(null);return}
+  const r=liveSpot({venc1,meses,mCheio,pedido,aviso,multaPct,pago});
+  $('fimEfetivo').textContent=`O aviso de ${aviso} dias termina em ${dt(r.fimAviso)}.`;
+  const contratoDesc=r2(meses*mDesc), restanteManter=r2(Math.max(0,contratoDesc-pago));
+  /* Teto (planilha de 05/11/2026 14:46): o proporcional nunca passa do contrato inteiro com desconto.
+     A multa continua calculada sobre o proporcional sem teto. */
+  r.bruto=r.proporcional; r.limitado=false;
+  if(r.limitado){r.proporcional=contratoDesc;r.total=r2(r.proporcional+r.multa);r.dif=r2(r.total-pago);}
+  render({...r,venc1,pedido,aviso,meses,mCheio,mDesc,multaPct,pago,f,contratoDesc,restanteManter,naoCompensa:r.total>=contratoDesc});
+}
+
+let last=null;
+function render(r){
+  last=r;
+  if(!r){$('vValor').textContent='—';$('vTexto').textContent='Preencha o início do contrato e a data do pedido.';$('tab').innerHTML='';$('txtCliente').value='';return}
+  const zero=Math.abs(r.dif)<0.005;
+  $('verdict').classList.toggle('pay',!r.naoCompensa&&r.dif>0.005);
+  $('verdict').classList.toggle('hold',r.naoCompensa);
+  if(r.naoCompensa){
+    $('vLabel').textContent='Rescisão não compensa: manter o contrato';
+    $('vValor').textContent=brl(Math.abs(r.dif));
+    $('vTexto').textContent=`Rescindir custaria ${brl(r.total)}, mais que o contrato inteiro com desconto (${brl(r.contratoDesc)}). `+
+      (r.restanteManter>0?`Mantendo o contrato, faltam apenas ${brl(r.restanteManter)}. Não há devolução.`:'Mantendo o contrato, não há nada a pagar nem a devolver.');
+  } else {
+  $('vLabel').textContent=zero?'Quitado':r.dif>0?'Cliente deve pagar':'Valor a devolver ao cliente';
+  $('vValor').textContent=brl(Math.abs(r.dif));
+  $('vTexto').textContent=zero?'O que foi pago cobre exatamente o total devido.'
+    :r.dif>0?`Total devido ${brl(r.total)} menos ${brl(r.pago)} já pagos.`
+    :`O cliente pagou ${brl(r.pago)}, mais que o total devido (${brl(r.total)}).`;
+  }
+  const fp={cartao:'Cartão de crédito',pix:'Pix / dinheiro / à vista',boleto:'Boleto'}[r.f];
+  const rows=[
+    ['sec','Período'],
+    ['Início do contrato',dt(r.venc1)],
+    ['Pedido de rescisão',dt(r.pedido)],
+    [`Fim do aviso (${r.aviso} dias)`,dt(r.fimAviso)],
+    ['sec','Valor proporcional (sem desconto)'],
+    [`${r.n} mensalidade${r.n===1?'':'s'} × ${brl(r.mCheio)}`,brl(r.valorMeses)],
+  ];
+  if(r.regra==='contrato') rows.push([`Serviço coberto até`,dt(r.cobertoAte)]);
+  if(r.dias>0) rows.push([`${r.dias} dias de ${dt(r.ultimo)} a ${dt(r.fimAviso)} (${brl(r.mCheio)} ÷ 30 × ${r.dias})`,brl(r.valorDias)]);
+  if(r.limitado) rows.push(['Proporcional calculado',brl(r.bruto)],['Teto: contrato inteiro com desconto',brl(r.contratoDesc)]);
+  rows.push(['sum','Valor proporcional do contrato',brl(r.proporcional)],
+    [r.regra==='contrato'?`Multa ${(r.multaPct*100).toLocaleString('pt-BR')}% sobre ${r.faltam} mensalidades a vencer (${brl(r.baseMulta)})`:`Multa ${(r.multaPct*100).toLocaleString('pt-BR')}% sobre ${brl(r.baseMulta)}`,brl(r.multa)],
+    ['sum','Total a pagar do contrato',brl(r.total)],
+    ['sec','Pagamento'],['Forma',fp],['Valor pago',brl(r.pago)],
+    ['sum',zero?'Diferença de saldo':r.dif>0?'Diferença de saldo a pagar':'Valor a devolver',brl(Math.abs(r.dif))],
+    ['sec','Comparação'],['Contrato inteiro com desconto',brl(r.contratoDesc)],['Falta pagar se mantiver o contrato',brl(r.restanteManter)]);
+  $('txtCliente').value=textoCliente(r);
+  atualizaWa();
+  $('tab').innerHTML=rows.map(x=>x[0]==='sec'?`<tr class="sec"><td colspan="2">${x[1]}</td></tr>`
+    :x[0]==='sum'?`<tr class="sum"><td>${x[1]}</td><td>${x[2]}</td></tr>`
+    :`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
+}
+
+function atualizaWa(){
+  let d=$('whats').value.replace(/\D/g,'');
+  if(d && !d.startsWith('55')) d='55'+d;
+  const a=$('waLink'), ok=d.length>=12 && $('txtCliente').value;
+  a.href= ok?`https://wa.me/${d}?text=${encodeURIComponent($('txtCliente').value)}`:'#';
+  a.setAttribute('aria-disabled', ok?'false':'true');
+  a.title= ok?`Abrir conversa com +${d}`:'Informe o WhatsApp do cliente';
+}
+function textoCliente(r){
+  const nome=$('cliente').value.trim(), oi=nome?`Olá, ${nome}!`:'Olá!';
+  const pct=(r.multaPct*100).toLocaleString('pt-BR');
+  const base=[oi,'',
+  `Recebemos seu pedido de rescisão do contrato Live Sport em ${dt(r.pedido)}. Conforme o contrato, a rescisão exige aviso prévio de ${r.aviso} dias, então o contrato vale até ${dt(r.fimAviso)}.`,'',
+  `O valor com desconto (${brl(r.mDesc)} por mês) é condicionado ao cumprimento do contrato completo. Na rescisão antecipada, o período utilizado é calculado pelo valor sem desconto (${brl(r.mCheio)} por mês), ${r.regra==='contrato'?`conforme a Cláusula VI, com multa de ${pct}% sobre as mensalidades que faltam vencer (Cláusula VII):`:`com multa de ${pct}% sobre a diferença entre o valor proporcional e o valor já pago:`}`,
+  `• ${r.n} mensalidades × ${brl(r.mCheio)} = ${brl(r.valorMeses)}`,
+  ...(r.dias>0?[`• ${r.dias} dias proporcionais até ${dt(r.fimAviso)} = ${brl(r.valorDias)}`]:[]),
+  r.limitado?`• Valor proporcional do contrato: ${brl(r.bruto)}, limitado ao valor do contrato com desconto: ${brl(r.proporcional)}`:`• Valor proporcional do contrato: ${brl(r.proporcional)}`,
+  r.regra==='contrato'?`• Multa por rescisão antecipada (${pct}% sobre ${r.faltam} × ${brl(r.mCheio)} = ${brl(r.baseMulta)}): ${brl(r.multa)}`:`• Multa por rescisão antecipada (${pct}%): ${brl(r.multa)}`,
+  `• Total da rescisão: ${brl(r.total)}`,
+  `• Valor já pago: ${brl(r.pago)}`,''];
+  let fim;
+  if(r.naoCompensa){
+    fim=[`Como o total da rescisão (${brl(r.total)}) fica acima do valor do contrato inteiro com desconto (${brl(r.contratoDesc)}), rescindir agora sairia mais caro para você do que manter o contrato até o fim.`,'',
+      r.restanteManter>0?`Nossa recomendação é manter o contrato. Assim você paga apenas os ${brl(r.restanteManter)} restantes, em vez de ${brl(r.dif)} na rescisão, e continua com o serviço ativo até o final.`
+        :`Nossa recomendação é manter o contrato. Seu contrato já está totalmente pago, então você não tem mais nada a pagar e continua com o serviço ativo até o final. Por esse mesmo motivo, não há valor a devolver.`,'',
+      'Se mesmo assim preferir seguir com a rescisão, é só nos avisar que enviamos as orientações de pagamento da diferença.'];
+  } else if(r.dif>0.005){
+    fim=[`Fica uma diferença de ${brl(r.dif)} a pagar para concluir a rescisão. Se estiver de acordo, enviamos as orientações de pagamento.`];
+  } else if(r.dif<-0.005){
+    fim=[`Você tem ${brl(-r.dif)} a receber de devolução. Por favor, nos confirme os dados para o reembolso.`];
+  } else fim=['O valor já pago cobre exatamente a rescisão, então não há nada a pagar nem a devolver.'];
+  return [...base,...fim,'','Ficamos à disposição para qualquer dúvida.','Equipe Live Coach'].join('\n');
+}
+
+function memoria(){
+  const r=last; if(!r) return '';
+  return [`Rescisão Live Sport: ${$('cliente').value}${$('nrPedido').value?` (pedido ${$('nrPedido').value})`:''}`,
+  `Cálculo efetuado em ${new Date().toLocaleString('pt-BR')}`,
+  `Início do contrato: ${dt(r.venc1)} | Pedido: ${dt(r.pedido)} | Fim do aviso (${r.aviso} dias): ${dt(r.fimAviso)}`,
+  `Mensalidade cheia: ${brl(r.mCheio)} | Com desconto: ${brl(r.mDesc)} | ${r.meses} meses`,
+  `${r.n} mensalidades × ${brl(r.mCheio)} = ${brl(r.valorMeses)}`,
+  ...(r.dias>0?[`${r.dias} dias (${dt(r.ultimo)} a ${dt(r.fimAviso)}) = ${brl(r.valorDias)}`]:[]),
+  r.limitado?`Valor proporcional: ${brl(r.bruto)} → limitado ao contrato com desconto: ${brl(r.proporcional)}`:`Valor proporcional do contrato: ${brl(r.proporcional)}`,
+  `Multa por rescisão antecipada (${(r.multaPct*100).toLocaleString('pt-BR')}% sobre ${brl(r.baseMulta)}): ${brl(r.multa)}`,
+  `Total a pagar do contrato: ${brl(r.total)}`,
+  `Valor pago: ${brl(r.pago)}`,
+  r.dif>0.005?`Diferença de saldo a pagar: ${brl(r.dif)}`:r.dif<-0.005?`Valor a devolver: ${brl(-r.dif)}`:'Quitado'].join('\n');
+}
+
+$('f').addEventListener('input',e=>{if(e.target.id==='modelo'){aplicarModalidade();pagoManual=false}if(e.target.id==='pago')pagoManual=true;
+  if(['parcPagas','mDesc','meses'].includes(e.target.id)||e.target.name==='forma')pagoManual=false;calc()});
+$('txtCliente').addEventListener('input',atualizaWa);
+$('f').addEventListener('submit',e=>e.preventDefault());
+$('copy').addEventListener('click',()=>{const t=memoria();const ok=()=>$('copyMsg').textContent='Memória de cálculo copiada.';
+  try{navigator.clipboard.writeText(t).then(ok,()=>fallback(t))}catch(_){fallback(t)}});
+function fallback(t){const b=$('buf');b.value=t;b.select();try{document.execCommand('copy');$('copyMsg').textContent='Memória de cálculo copiada.'}catch(_){$('copyMsg').textContent='Não foi possível copiar. Selecione o texto do resultado manualmente.'}}
+$('copyCli').addEventListener('click',()=>{const t=$('txtCliente').value;const ok=()=>$('copyMsg').textContent='Texto para o cliente copiado.';
+  try{navigator.clipboard.writeText(t).then(ok,()=>{$('txtCliente').select();try{document.execCommand('copy');ok()}catch(_){}})}catch(_){$('txtCliente').select();try{document.execCommand('copy');ok()}catch(_){}}});
+function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function montaFolha(){
+  const r=last; if(!r) return false;
+  const pct=(r.multaPct*100).toLocaleString('pt-BR'), zero=Math.abs(r.dif)<0.005;
+  const fp={cartao:'Cartão de crédito',pix:'Pix / dinheiro / à vista',boleto:'Boleto'}[r.f];
+  const cli=$('cliente').value||'Contratante';
+  const linha=(a,b,c='')=>`<tr class="${c}"><td>${esc(a)}</td><td>${esc(b)}</td></tr>`;
+  let calc=linha(`${r.n} mensalidade${r.n===1?'':'s'} × ${brl(r.mCheio)}`,brl(r.valorMeses));
+  if(r.dias>0) calc+=linha(`${r.dias} dias proporcionais (${dt(r.ultimo)} a ${dt(r.fimAviso)})`,brl(r.valorDias));
+  calc+=linha('Valor proporcional do contrato',brl(r.proporcional),'b')
+    +linha(`Multa por rescisão antecipada (${pct}% sobre ${brl(r.baseMulta)})`,brl(r.multa))
+    +linha('Total a pagar do contrato',brl(r.total),'b')
+    +linha('Valor pago',brl(r.pago))
+    +linha(zero?'Diferença de saldo':r.dif>0?'Diferença de saldo a pagar':'Valor a devolver',brl(Math.abs(r.dif)),'res');
+  let dec;
+  if(r.naoCompensa) dec=`a rescisão não compensa. Rescindir custaria ${brl(r.total)}, mais do que o contrato inteiro com desconto (${brl(r.contratoDesc)}). Recomendação: manter o contrato até o fim`+(r.restanteManter>0?`, pagando apenas os ${brl(r.restanteManter)} restantes.`:', sem valor a pagar e sem devolução.');
+  else if(zero) dec='o valor pago cobre a rescisão. Não há valor a pagar nem a devolver.';
+  else if(r.dif>0) dec=`para concluir a rescisão, a diferença a pagar é de ${brl(r.dif)}.`;
+  else dec=`há ${brl(-r.dif)} a devolver.`;
+  $('folha').innerHTML=`<h1>Cálculo de Rescisão – Live Sport ${r.meses} meses</h1>
+  <p class="sub">Live Coach Emagrecimento Ltda · Cálculo efetuado em ${new Date().toLocaleDateString('pt-BR')}</p>
+  <h2>Dados</h2><table class="dados">
+  ${linha('Cliente',cli)}${linha('Pedido',$('nrPedido').value||'-')}
+  ${linha('Contrato',`${r.meses} × ${brl(r.mCheio)} · com desconto ${r.meses} × ${brl(r.mDesc)} (${brl(r.contratoDesc)})`)}
+  ${linha('Início do contrato',dt(r.venc1))}${linha('Pedido de rescisão',dt(r.pedido))}
+  ${linha(`Fim do aviso de ${r.aviso} dias`,dt(r.fimAviso))}${linha('Forma de pagamento',fp)}</table>
+  <h2>Cálculo</h2><table>${calc}</table>
+  <div class="dec"><b>Decisão:</b> ${esc(dec)}</div>
+  <div class="ass"><div>${esc(cli)}<br>Contratante</div><div>Live Coach Emagrecimento Ltda<br>Contratada</div></div>
+  <p class="foot">Base: contrato Live Sport 12 M, cláusulas V, VI e VII. Pato Branco – PR.</p>`;
+  return true;
+}
+window.addEventListener('beforeprint',montaFolha);
+$('printBtn').addEventListener('click',()=>{if(montaFolha()) window.print();});
+$('reset').addEventListener('click',()=>{['cliente','nrPedido','whats','venc1','pedido','pago'].forEach(i=>$(i).value='');pagoManual=false;calc()});
+aplicarModalidade();
+calc();
+</script>
+
+<button type="button" id="printFab" style="position:fixed;right:20px;bottom:20px;z-index:30;font-size:1.05rem;padding:14px 22px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.25)">Imprimir</button>
+<style>@media print{#printFab{display:none!important}}</style>
+<div id="folha"></div>
+<script>document.getElementById("printFab").addEventListener("click",()=>{if(montaFolha()) window.print();});</script>
+<script>
+(function(){
+  const m=location.hash.match(/^#d=(.+)$/); if(!m) return;
+  let d; try{d=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))))}catch(_){return}
+  const set=(id,v)=>{const el=document.getElementById(id); if(el&&v!=null) el.value=v};
+  if(d.modelo!=null){set('modelo',d.modelo); try{aplicarModalidade()}catch(_){}}
+  ['nrPedido','cliente','whats','venc1','meses','mCheio','mDesc','multa','pedido','aviso','parcPagas'].forEach(k=>set(k,d[k]));
+  if(d.forma){const r=document.querySelector('input[name="forma"][value="'+d.forma+'"]'); if(r) r.checked=true}
+  pagoManual=false; try{calc()}catch(_){}
+  if(d.pago!=null){set('pago',d.pago); pagoManual=true; try{calc()}catch(_){}}
+  history.replaceState(null,'',location.pathname);
+  setTimeout(()=>{if(montaFolha()) window.print()},300);
+})();
+</script>
+</body></html>
